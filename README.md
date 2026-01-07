@@ -1,59 +1,104 @@
-# AppSessions
+# Frontend - Session Tracker
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 19.1.7.
+Angular 19 application for user authentication and tab presence tracking.
 
-## Development server
+## Setup Instructions
 
-To start a local development server, run:
+### Prerequisites
 
-```bash
-ng serve
-```
+- Node.js 18+
+- npm
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+### Installation
 
 ```bash
-ng generate component component-name
+npm install
+npm start
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+The application will be available at `http://localhost:4200`.
 
-```bash
-ng generate --help
+### Environment
+
+Configuration is in `src/environments/environment.ts`:
+
+```typescript
+export const environment = {
+  supabaseUrl: 'https://your-project.supabase.co',
+  supabaseKey: 'your-anon-key',
+  apiUrl: 'http://localhost:5001/api'
+};
 ```
 
-## Building
+## Authentication with Supabase
 
-To build the project run:
+### Configuration
 
-```bash
-ng build
+Authentication uses **Supabase Auth** with email/password strategy. The `SupabaseService` wraps the Supabase JS client.
+
+### Flow
+
+1. User registers or signs in via Supabase Auth API
+2. Supabase returns JWT access token
+3. Session is stored in `localStorage` automatically by Supabase client
+4. `authGuard` waits for session initialization before checking auth state
+5. `loginGuard` redirects authenticated users from `/login` to `/app`
+6. Access token is sent to backend via `Authorization: Bearer <token>` header
+
+### Key Files
+
+- `services/supabase.service.ts` - Auth wrapper with reactive `user$` observable
+- `guards/auth.guard.ts` - Protects `/app` route
+- `guards/login.guard.ts` - Redirects logged users away from login
+
+## Presence Strategy
+
+### Tri-state Model
+
+Instead of binary online/offline, the system uses three states:
+
+| State | Condition | Meaning |
+|-------|-----------|---------|
+| **Active** | `lastSeen` < 30s | User is actively using the tab |
+| **Idle** | `lastSeen` 30-60s | Tab open but not focused |
+| **Stale** | `lastSeen` > 60s | Tab may be closed or throttled |
+
+### Why This Approach?
+
+1. **No `beforeunload` reliance** - These events are unreliable in modern browsers
+2. **Graceful degradation** - Stale tabs "fade out" instead of flickering
+3. **Browser throttling tolerance** - Background tabs have reduced timer precision
+
+### Implementation
+
+- `deviceId` stored in `localStorage` (persists across sessions)
+- `tabId` stored in `sessionStorage` (unique per tab)
+- Heartbeat: 10s for active tabs, 30s for background tabs
+- Immediate heartbeat on visibility change (focus/blur)
+
+### Key Files
+
+- `services/tab-tracking.service.ts` - Heartbeat logic and visibility tracking
+- `services/api.service.ts` - HTTP communication with backend
+
+## Trade-offs and Limitations
+
+Due to time constraints:
+
+- **Polling over WebSockets** - Uses 10s polling instead of real-time updates
+- **No token refresh** - Sessions expire after 1 hour without refresh
+- **No automatic cleanup** - Stale entries remain in database
+- **Minimal error handling** - No retry logic for failed API calls
+- **No unit tests** - Focus was on functionality
+
+## Architecture
+
+```
+src/app/
+├── guards/           # Route protection (auth, login)
+├── interfaces/       # TypeScript types (TabInfo, etc.)
+├── pages/            # Standalone components (login, dashboard)
+└── services/         # Business logic & API communication
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+**Tech Stack**: Angular 19, Tailwind CSS, Supabase JS Client, RxJS

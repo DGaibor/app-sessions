@@ -1,0 +1,67 @@
+<div class="min-h-screen bg-gray-100">
+  <header class="bg-white border-b border-gray-300">
+    <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+      <h1 class="text-lg font-bold">Session Tracker</h1>
+      <div class="flex items-center gap-4">
+        <span class="text-sm">{{ userEmail }}</span>
+        <button (click)="signOut()" class="px-3 py-1 bg-black text-white text-sm">Sign Out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 py-6">
+    @if (tabs$ | async; as data) {
+      <div class="grid grid-cols-2 gap-4 mb-6">
+        <div class="bg-white p-4 border border-gray-300">
+          <div class="text-2xl font-bold">{{ data.onlineCount }}</div>
+          <div class="text-sm text-gray-500">Active Tabs</div>
+        </div>
+        <div class="bg-white p-4 border border-gray-300">
+          <div class="text-2xl font-bold">{{ data.devices.length }}</div>
+          <div class="text-sm text-gray-500">Devices</div>
+        </div>
+      </div>
+
+      <div class="bg-gray-200 p-3 mb-6 text-sm">
+        <strong>Current:</strong> Device {{ currentDeviceId.split('-').pop() }} / Tab {{ currentTabId.split('-').pop() }}
+      </div>
+
+      <div class="space-y-4">
+        @for (device of data.devices; track trackByDevice($index, device)) {
+          <div class="bg-white border border-gray-300" [class.border-black]="device.deviceId === currentDeviceId">
+            <div class="px-4 py-2 bg-gray-50 border-b border-gray-300 flex items-center justify-between">
+              <span class="font-medium">
+                Device {{ device.deviceId.split('-').pop() }}
+                @if (device.deviceId === currentDeviceId) {
+                  <span class="text-xs ml-2">(current)</span>
+                }
+              </span>
+              <span class="text-sm text-gray-500">{{ device.tabs.length }} tab(s)</span>
+            </div>
+
+            <div class="divide-y divide-gray-200">
+              @for (tab of device.tabs; track trackByTab($index, tab)) {
+                <div class="px-4 py-2 flex items-center justify-between text-sm" [class.bg-gray-100]="isCurrentTab(tab)">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full" [ngClass]="'status-' + tab.status"></span>
+                    <span>{{ parseUserAgent(tab.userAgent) }}</span>
+                    <span class="text-xs text-gray-400">{{ tab.tabId.split('-').pop() }}</span>
+                    @if (isCurrentTab(tab)) {
+                      <span class="text-xs">(this tab)</span>
+                    }
+                  </div>
+                  <div class="flex items-center gap-3 text-gray-500">
+                    <span>{{ getStatusLabel(tab.status) }}</span>
+                    <span>{{ formatLastSeen(tab.lastSeen) }}</span>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="text-center py-20 text-gray-500">Loading sessions...</div>
+    }
+  </main>
+</div>
